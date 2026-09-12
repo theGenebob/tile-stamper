@@ -43,8 +43,9 @@
     overflow-y: auto;
   }
 
-  #sidebar button,
-  #main button {
+#sidebar button,
+#main button,
+header button {
     background: #3a3a3a;
     color: #eee;
     border: 1px solid #666;
@@ -53,8 +54,9 @@
     cursor: pointer;
   }
 
-  #sidebar button:hover,
-  #main button:hover {
+#sidebar button:hover,
+#main button:hover,
+header button:hover {
     background: #4b4b4b;
   }
 
@@ -219,7 +221,33 @@
 <body>
 
 <header>
-  <h1>Tile Stamper</h1>
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  ">
+
+    <h1>Tile Stamper</h1>
+
+    <div>
+      <button id="import-library">
+        Import Library
+      </button>
+
+      <button id="export-library">
+        Export Library
+      </button>
+    </div>
+
+  </div>
+
+  <input
+    id="import-file"
+    type="file"
+    accept=".json,application/json"
+    style="display:none;"
+  >
 </header>
 
 <div id="app">
@@ -1019,7 +1047,202 @@ function deleteImage(
   render();
 }
 
+// ============================================================
+// EXPORT LIBRARY
+// ============================================================
 
+document
+  .getElementById(
+    "export-library"
+  )
+  .onclick = () => {
+
+    const exportData = {
+
+      version:
+        1,
+
+      exportedAt:
+        new Date().toISOString(),
+
+      categories:
+        library.categories
+
+    };
+
+
+    const json =
+      JSON.stringify(
+        exportData,
+        null,
+        2
+      );
+
+
+    const blob =
+      new Blob(
+        [json],
+        {
+          type:
+            "application/json"
+        }
+      );
+
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+
+    link.href =
+      url;
+
+
+    link.download =
+      "tile-stamper-library.json";
+
+
+    document.body.appendChild(
+      link
+    );
+
+
+    link.click();
+
+
+    link.remove();
+
+
+    URL.revokeObjectURL(
+      url
+    );
+
+  };
+
+
+// ============================================================
+// IMPORT LIBRARY
+// ============================================================
+
+const importFile =
+  document.getElementById(
+    "import-file"
+  );
+
+
+document
+  .getElementById(
+    "import-library"
+  )
+  .onclick = () => {
+
+    importFile.value =
+      "";
+
+    importFile.click();
+
+  };
+
+
+importFile.addEventListener(
+  "change",
+
+  async event => {
+
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file)
+      return;
+
+
+    try {
+
+      const text =
+        await file.text();
+
+
+      const imported =
+        JSON.parse(
+          text
+        );
+
+
+      // Make sure this looks like
+      // a Tile Stamper library.
+
+      if (
+        !imported ||
+        !Array.isArray(
+          imported.categories
+        )
+      ) {
+
+        throw new Error(
+          "Invalid Tile Stamper library."
+        );
+      }
+
+
+      const confirmed =
+        confirm(
+          `Import ${imported.categories.length} categories?\n\nThis will replace your current Tile Stamper library.`
+        );
+
+
+      if (!confirmed)
+        return;
+
+
+      library = {
+
+        categories:
+          imported.categories
+
+      };
+
+
+      selectedCategoryId =
+        library.categories[0]?.id
+        ?? null;
+
+
+      saveLibrary();
+
+      render();
+
+
+      alert(
+        "Tile Stamper library imported successfully."
+      );
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Tile Stamper import failed:",
+        err
+      );
+
+
+      alert(
+        "That file could not be imported as a Tile Stamper library."
+      );
+
+    }
+
+  }
+);
+ 
 // ============================================================
 // START
 // ============================================================
