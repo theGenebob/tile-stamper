@@ -24,9 +24,21 @@
     border-bottom: 1px solid #444;
   }
 
+  #header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
   header h1 {
     margin: 0;
     font-size: 22px;
+  }
+
+  #header-controls {
+    display: flex;
+    gap: 6px;
   }
 
   #app {
@@ -35,7 +47,7 @@
   }
 
   #sidebar {
-    width: 220px;
+    width: 240px;
     flex-shrink: 0;
     padding: 12px;
     background: #242424;
@@ -43,9 +55,7 @@
     overflow-y: auto;
   }
 
-#sidebar button,
-#main button,
-header button {
+  button {
     background: #3a3a3a;
     color: #eee;
     border: 1px solid #666;
@@ -54,10 +64,13 @@ header button {
     cursor: pointer;
   }
 
-#sidebar button:hover,
-#main button:hover,
-header button:hover {
+  button:hover {
     background: #4b4b4b;
+  }
+
+  button:disabled {
+    opacity: .4;
+    cursor: default;
   }
 
   #new-category {
@@ -83,9 +96,11 @@ header button:hover {
     border-left: 4px solid #d4af37;
   }
 
+  .category-edit,
   .category-delete {
     width: 30px;
-    padding: 6px 0 !important;
+    padding: 6px 0;
+    flex-shrink: 0;
   }
 
   #main {
@@ -144,14 +159,21 @@ header button:hover {
     text-overflow: ellipsis;
   }
 
-  .tile-delete {
+  .tile-actions {
     position: absolute;
     top: 4px;
     right: 4px;
+    display: flex;
+    gap: 3px;
+  }
+
+  .tile-edit,
+  .tile-delete {
     width: 26px;
     height: 26px;
-    padding: 0 !important;
-    border-radius: 50% !important;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(35, 35, 35, .9);
   }
 
   #empty-message {
@@ -214,6 +236,22 @@ header button:hover {
     border-radius: 5px;
     font-size: 12px;
     opacity: .85;
+    pointer-events: none;
+  }
+
+  @media (max-width: 700px) {
+    #header-inner {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    #app {
+      height: calc(100vh - 95px);
+    }
+
+    #sidebar {
+      width: 190px;
+    }
   }
 </style>
 </head>
@@ -221,16 +259,13 @@ header button:hover {
 <body>
 
 <header>
-  <div style="
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:10px;
-  ">
+
+  <div id="header-inner">
 
     <h1>Tile Stamper</h1>
 
-    <div>
+    <div id="header-controls">
+
       <button id="import-library">
         Import Library
       </button>
@@ -238,6 +273,7 @@ header button:hover {
       <button id="export-library">
         Export Library
       </button>
+
     </div>
 
   </div>
@@ -248,7 +284,9 @@ header button:hover {
     accept=".json,application/json"
     style="display:none;"
   >
+
 </header>
+
 
 <div id="app">
 
@@ -261,6 +299,7 @@ header button:hover {
     <div id="categories"></div>
 
   </aside>
+
 
   <main id="main">
 
@@ -282,18 +321,21 @@ header button:hover {
 
 </div>
 
+
 <div id="status">
   Drag a tile onto Foundry to place it.
 </div>
 
 
-<!-- ADD IMAGE DIALOG -->
+<!-- IMAGE DIALOG -->
 
 <dialog id="image-dialog">
 
-  <h2>Add Image</h2>
+  <h2 id="image-dialog-title">
+    Add Image
+  </h2>
 
-  <label>
+  <label for="image-name">
     Name
   </label>
 
@@ -303,7 +345,7 @@ header button:hover {
     placeholder="Oak Tree"
   >
 
-  <label>
+  <label for="image-url">
     Image URL
   </label>
 
@@ -328,6 +370,38 @@ header button:hover {
 </dialog>
 
 
+<!-- CATEGORY EDIT DIALOG -->
+
+<dialog id="category-dialog">
+
+  <h2>
+    Rename Category
+  </h2>
+
+  <label for="category-edit-name">
+    Name
+  </label>
+
+  <input
+    id="category-edit-name"
+    type="text"
+  >
+
+  <div class="dialog-buttons">
+
+    <button id="category-cancel">
+      Cancel
+    </button>
+
+    <button id="category-save">
+      Save
+    </button>
+
+  </div>
+
+</dialog>
+
+
 <script>
 
 const STORAGE_KEY =
@@ -341,6 +415,16 @@ let library =
 let selectedCategoryId =
   library.categories[0]?.id
   ?? null;
+
+
+// Used by the edit dialogs.
+
+let editingAssetId =
+  null;
+
+
+let editingCategoryId =
+  null;
 
 
 // ============================================================
@@ -359,9 +443,23 @@ function loadLibrary() {
 
     if (saved) {
 
-      return JSON.parse(
-        saved
-      );
+      const parsed =
+        JSON.parse(
+          saved
+        );
+
+
+      if (
+        parsed &&
+        Array.isArray(
+          parsed.categories
+        )
+      ) {
+
+        return parsed;
+
+      }
+
     }
 
   }
@@ -372,6 +470,7 @@ function loadLibrary() {
       "Could not load Tile Stamper library:",
       err
     );
+
   }
 
 
@@ -389,6 +488,7 @@ function saveLibrary() {
       library
     )
   );
+
 }
 
 
@@ -399,6 +499,7 @@ function saveLibrary() {
 function makeId() {
 
   return crypto.randomUUID();
+
 }
 
 
@@ -416,6 +517,7 @@ function getSelectedCategory() {
     )
     ?? null
   );
+
 }
 
 
@@ -431,8 +533,13 @@ function deriveName(url) {
 
 
     return (
-      decodeURIComponent(filename)
-        .replace(/\.[^.]+$/, "")
+      decodeURIComponent(
+        filename
+      )
+        .replace(
+          /\.[^.]+$/,
+          ""
+        )
       ||
       "Image"
     );
@@ -442,7 +549,9 @@ function deriveName(url) {
   catch {
 
     return "Image";
+
   }
+
 }
 
 
@@ -454,8 +563,13 @@ function render() {
 
   renderCategories();
   renderTiles();
+
 }
 
+
+// ============================================================
+// RENDER CATEGORIES
+// ============================================================
 
 function renderCategories() {
 
@@ -465,7 +579,8 @@ function renderCategories() {
     );
 
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
 
   for (
@@ -482,6 +597,8 @@ function renderCategories() {
     row.className =
       "category";
 
+
+    // CATEGORY NAME
 
     const button =
       document.createElement(
@@ -501,10 +618,15 @@ function renderCategories() {
       button.classList.add(
         "active"
       );
+
     }
 
 
     button.textContent =
+      category.name;
+
+
+    button.title =
       category.name;
 
 
@@ -517,6 +639,40 @@ function renderCategories() {
 
     };
 
+
+    // EDIT CATEGORY
+
+    const editButton =
+      document.createElement(
+        "button"
+      );
+
+
+    editButton.className =
+      "category-edit";
+
+
+    editButton.textContent =
+      "✎";
+
+
+    editButton.title =
+      "Rename Category";
+
+
+    editButton.onclick =
+      event => {
+
+        event.stopPropagation();
+
+        openCategoryEditor(
+          category.id
+        );
+
+      };
+
+
+    // DELETE CATEGORY
 
     const deleteButton =
       document.createElement(
@@ -550,6 +706,7 @@ function renderCategories() {
 
     row.append(
       button,
+      editButton,
       deleteButton
     );
 
@@ -557,9 +714,15 @@ function renderCategories() {
     container.appendChild(
       row
     );
+
   }
+
 }
 
+
+// ============================================================
+// RENDER TILES
+// ============================================================
 
 function renderTiles() {
 
@@ -585,7 +748,8 @@ function renderTiles() {
     );
 
 
-  container.innerHTML = "";
+  container.innerHTML =
+    "";
 
 
   if (!category) {
@@ -606,6 +770,7 @@ function renderTiles() {
 
 
     return;
+
   }
 
 
@@ -615,6 +780,18 @@ function renderTiles() {
 
   addButton.disabled =
     false;
+
+
+  if (
+    !Array.isArray(
+      category.assets
+    )
+  ) {
+
+    category.assets =
+      [];
+
+  }
 
 
   if (
@@ -631,6 +808,7 @@ function renderTiles() {
 
 
     return;
+
   }
 
 
@@ -648,6 +826,8 @@ function renderTiles() {
     card.className =
       "tile-card";
 
+
+    // IMAGE
 
     const image =
       document.createElement(
@@ -672,8 +852,7 @@ function renderTiles() {
 
 
     // ========================================================
-    // THE IMPORTANT PART:
-    // SEND FOUNDRY A TILE DRAG PAYLOAD
+    // FOUNDRY TILE DRAG PAYLOAD
     // ========================================================
 
     image.addEventListener(
@@ -702,13 +881,10 @@ function renderTiles() {
 
 
         event.dataTransfer.setData(
-
           "text/plain",
-
           JSON.stringify(
             data
           )
-
         );
 
 
@@ -718,6 +894,8 @@ function renderTiles() {
       }
     );
 
+
+    // TILE NAME
 
     const name =
       document.createElement(
@@ -737,6 +915,52 @@ function renderTiles() {
       asset.name;
 
 
+    // ACTION BUTTON CONTAINER
+
+    const actions =
+      document.createElement(
+        "div"
+      );
+
+
+    actions.className =
+      "tile-actions";
+
+
+    // EDIT IMAGE
+
+    const editButton =
+      document.createElement(
+        "button"
+      );
+
+
+    editButton.className =
+      "tile-edit";
+
+
+    editButton.textContent =
+      "✎";
+
+
+    editButton.title =
+      "Edit Image";
+
+
+    editButton.onclick =
+      event => {
+
+        event.stopPropagation();
+
+        openImageEditor(
+          asset.id
+        );
+
+      };
+
+
+    // DELETE IMAGE
+
     const deleteButton =
       document.createElement(
         "button"
@@ -755,18 +979,27 @@ function renderTiles() {
       "Delete Image";
 
 
-    deleteButton.onclick = () => {
+    deleteButton.onclick =
+      event => {
 
-      deleteImage(
-        asset.id
-      );
+        event.stopPropagation();
 
-    };
+        deleteImage(
+          asset.id
+        );
+
+      };
+
+
+    actions.append(
+      editButton,
+      deleteButton
+    );
 
 
     card.append(
       image,
-      deleteButton,
+      actions,
       name
     );
 
@@ -774,12 +1007,14 @@ function renderTiles() {
     container.appendChild(
       card
     );
+
   }
+
 }
 
 
 // ============================================================
-// CATEGORIES
+// CREATE CATEGORY
 // ============================================================
 
 document
@@ -794,8 +1029,13 @@ document
       );
 
 
-    if (!name?.trim())
+    if (
+      !name?.trim()
+    ) {
+
       return;
+
+    }
 
 
     const category = {
@@ -822,10 +1062,167 @@ document
 
 
     saveLibrary();
+
     render();
 
   };
 
+
+// ============================================================
+// EDIT CATEGORY
+// ============================================================
+
+const categoryDialog =
+  document.getElementById(
+    "category-dialog"
+  );
+
+
+function openCategoryEditor(
+  categoryId
+) {
+
+  const category =
+    library.categories.find(
+      c =>
+        c.id ===
+        categoryId
+    );
+
+
+  if (!category)
+    return;
+
+
+  editingCategoryId =
+    categoryId;
+
+
+  const input =
+    document.getElementById(
+      "category-edit-name"
+    );
+
+
+  input.value =
+    category.name;
+
+
+  categoryDialog.showModal();
+
+
+  input.focus();
+
+  input.select();
+
+}
+
+
+document
+  .getElementById(
+    "category-cancel"
+  )
+  .onclick = () => {
+
+    editingCategoryId =
+      null;
+
+    categoryDialog.close();
+
+  };
+
+
+document
+  .getElementById(
+    "category-save"
+  )
+  .onclick = () => {
+
+    if (!editingCategoryId)
+      return;
+
+
+    const category =
+      library.categories.find(
+        c =>
+          c.id ===
+          editingCategoryId
+      );
+
+
+    if (!category)
+      return;
+
+
+    const name =
+      document
+        .getElementById(
+          "category-edit-name"
+        )
+        .value
+        .trim();
+
+
+    if (!name) {
+
+      alert(
+        "Enter a category name."
+      );
+
+      return;
+
+    }
+
+
+    category.name =
+      name;
+
+
+    editingCategoryId =
+      null;
+
+
+    saveLibrary();
+
+    categoryDialog.close();
+
+    render();
+
+  };
+
+
+// Allow Enter to save category rename.
+
+document
+  .getElementById(
+    "category-edit-name"
+  )
+  .addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key ===
+        "Enter"
+      ) {
+
+        event.preventDefault();
+
+        document
+          .getElementById(
+            "category-save"
+          )
+          .click();
+
+      }
+
+    }
+  );
+
+
+// ============================================================
+// DELETE CATEGORY
+// ============================================================
 
 function deleteCategory(
   categoryId
@@ -845,7 +1242,7 @@ function deleteCategory(
 
   const confirmed =
     confirm(
-      `Delete "${category.name}" and its ${category.assets.length} image(s)?`
+      `Delete "${category.name}" and its ${category.assets?.length ?? 0} image(s)?`
     );
 
 
@@ -869,16 +1266,19 @@ function deleteCategory(
     selectedCategoryId =
       library.categories[0]?.id
       ?? null;
+
   }
 
 
   saveLibrary();
+
   render();
+
 }
 
 
 // ============================================================
-// ADD IMAGE
+// IMAGE DIALOG
 // ============================================================
 
 const imageDialog =
@@ -887,31 +1287,129 @@ const imageDialog =
   );
 
 
+const imageDialogTitle =
+  document.getElementById(
+    "image-dialog-title"
+  );
+
+
+const imageNameInput =
+  document.getElementById(
+    "image-name"
+  );
+
+
+const imageUrlInput =
+  document.getElementById(
+    "image-url"
+  );
+
+
+const imageSaveButton =
+  document.getElementById(
+    "image-save"
+  );
+
+
+// ============================================================
+// ADD IMAGE
+// ============================================================
+
 document
   .getElementById(
     "add-image"
   )
   .onclick = () => {
 
-    document.getElementById(
-      "image-name"
-    ).value = "";
+    editingAssetId =
+      null;
 
 
-    document.getElementById(
-      "image-url"
-    ).value = "";
+    imageDialogTitle.textContent =
+      "Add Image";
+
+
+    imageSaveButton.textContent =
+      "Add";
+
+
+    imageNameInput.value =
+      "";
+
+
+    imageUrlInput.value =
+      "";
 
 
     imageDialog.showModal();
 
 
-    document.getElementById(
-      "image-url"
-    ).focus();
+    imageUrlInput.focus();
 
   };
 
+
+// ============================================================
+// EDIT IMAGE
+// ============================================================
+
+function openImageEditor(
+  assetId
+) {
+
+  const category =
+    getSelectedCategory();
+
+
+  if (!category)
+    return;
+
+
+  const asset =
+    category.assets.find(
+      a =>
+        a.id ===
+        assetId
+    );
+
+
+  if (!asset)
+    return;
+
+
+  editingAssetId =
+    assetId;
+
+
+  imageDialogTitle.textContent =
+    "Edit Image";
+
+
+  imageSaveButton.textContent =
+    "Save";
+
+
+  imageNameInput.value =
+    asset.name;
+
+
+  imageUrlInput.value =
+    asset.src;
+
+
+  imageDialog.showModal();
+
+
+  imageNameInput.focus();
+
+  imageNameInput.select();
+
+}
+
+
+// ============================================================
+// CANCEL IMAGE DIALOG
+// ============================================================
 
 document
   .getElementById(
@@ -919,61 +1417,90 @@ document
   )
   .onclick = () => {
 
+    editingAssetId =
+      null;
+
     imageDialog.close();
 
   };
 
 
-document
-  .getElementById(
-    "image-save"
-  )
-  .onclick = () => {
+// ============================================================
+// SAVE IMAGE
+// ============================================================
 
-    const category =
-      getSelectedCategory();
+imageSaveButton.onclick = () => {
 
-
-    if (!category)
-      return;
+  const category =
+    getSelectedCategory();
 
 
-    const url =
-      document
-        .getElementById(
-          "image-url"
-        )
-        .value
-        .trim();
+  if (!category)
+    return;
 
 
-    let name =
-      document
-        .getElementById(
-          "image-name"
-        )
-        .value
-        .trim();
+  const url =
+    imageUrlInput
+      .value
+      .trim();
 
 
-    if (!url) {
+  let name =
+    imageNameInput
+      .value
+      .trim();
 
-      alert(
-        "Enter an image URL."
+
+  if (!url) {
+
+    alert(
+      "Enter an image URL."
+    );
+
+    return;
+
+  }
+
+
+  if (!name) {
+
+    name =
+      deriveName(
+        url
       );
 
+  }
+
+
+  // EDIT EXISTING IMAGE
+
+  if (editingAssetId) {
+
+    const asset =
+      category.assets.find(
+        a =>
+          a.id ===
+          editingAssetId
+      );
+
+
+    if (!asset)
       return;
-    }
 
 
-    if (!name) {
+    asset.name =
+      name;
 
-      name =
-        deriveName(
-          url
-        );
-    }
 
+    asset.src =
+      url;
+
+  }
+
+
+  // ADD NEW IMAGE
+
+  else {
 
     category.assets.push({
 
@@ -987,14 +1514,60 @@ document
 
     });
 
+  }
 
-    saveLibrary();
 
-    imageDialog.close();
+  editingAssetId =
+    null;
 
-    render();
 
-  };
+  saveLibrary();
+
+  imageDialog.close();
+
+  render();
+
+};
+
+
+// Allow Enter to save from image fields.
+
+imageNameInput.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      event.key ===
+      "Enter"
+    ) {
+
+      event.preventDefault();
+
+      imageSaveButton.click();
+
+    }
+
+  }
+);
+
+
+imageUrlInput.addEventListener(
+  "keydown",
+  event => {
+
+    if (
+      event.key ===
+      "Enter"
+    ) {
+
+      event.preventDefault();
+
+      imageSaveButton.click();
+
+    }
+
+  }
+);
 
 
 // ============================================================
@@ -1032,6 +1605,7 @@ function deleteImage(
   ) {
 
     return;
+
   }
 
 
@@ -1044,8 +1618,11 @@ function deleteImage(
 
 
   saveLibrary();
+
   render();
+
 }
+
 
 // ============================================================
 // EXPORT LIBRARY
@@ -1105,8 +1682,17 @@ document
       url;
 
 
+    const date =
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+
     link.download =
-      "tile-stamper-library.json";
+      `tile-stamper-library-${date}.json`;
 
 
     document.body.appendChild(
@@ -1115,7 +1701,6 @@ document
 
 
     link.click();
-
 
     link.remove();
 
@@ -1176,9 +1761,6 @@ importFile.addEventListener(
         );
 
 
-      // Make sure this looks like
-      // a Tile Stamper library.
-
       if (
         !imported ||
         !Array.isArray(
@@ -1189,12 +1771,112 @@ importFile.addEventListener(
         throw new Error(
           "Invalid Tile Stamper library."
         );
+
       }
+
+
+      // Normalize the imported data so older
+      // exports still work if IDs are missing.
+
+      const normalized = {
+
+        categories:
+          imported.categories.map(
+            category => {
+
+              const categoryId =
+                category.id
+                ||
+                makeId();
+
+
+              const assets =
+                Array.isArray(
+                  category.assets
+                )
+                ?
+                category.assets
+                  .map(
+                    asset => {
+
+                      const src =
+                        String(
+                          asset.src
+                          ??
+                          ""
+                        ).trim();
+
+
+                      if (!src)
+                        return null;
+
+
+                      return {
+
+                        id:
+                          asset.id
+                          ||
+                          makeId(),
+
+                        name:
+                          String(
+                            asset.name
+                            ||
+                            deriveName(
+                              src
+                            )
+                          ),
+
+                        src
+
+                      };
+
+                    }
+                  )
+                  .filter(
+                    Boolean
+                  )
+                :
+                [];
+
+
+              return {
+
+                id:
+                  categoryId,
+
+                name:
+                  String(
+                    category.name
+                    ||
+                    "Unnamed Category"
+                  ),
+
+                assets
+
+              };
+
+            }
+          )
+
+      };
+
+
+      const tileCount =
+        normalized.categories.reduce(
+          (
+            total,
+            category
+          ) =>
+            total +
+            category.assets.length,
+          0
+        );
 
 
       const confirmed =
         confirm(
-          `Import ${imported.categories.length} categories?\n\nThis will replace your current Tile Stamper library.`
+          `Import ${normalized.categories.length} categories and ${tileCount} images?\n\nThis will replace your current Tile Stamper library.`
         );
 
 
@@ -1202,12 +1884,8 @@ importFile.addEventListener(
         return;
 
 
-      library = {
-
-        categories:
-          imported.categories
-
-      };
+      library =
+        normalized;
 
 
       selectedCategoryId =
@@ -1242,7 +1920,34 @@ importFile.addEventListener(
 
   }
 );
- 
+
+
+// ============================================================
+// CLOSE DIALOGS WITH ESCAPE / CLEAN EDIT STATE
+// ============================================================
+
+imageDialog.addEventListener(
+  "close",
+  () => {
+
+    editingAssetId =
+      null;
+
+  }
+);
+
+
+categoryDialog.addEventListener(
+  "close",
+  () => {
+
+    editingCategoryId =
+      null;
+
+  }
+);
+
+
 // ============================================================
 // START
 // ============================================================
