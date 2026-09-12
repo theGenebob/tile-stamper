@@ -1,14 +1,1032 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Tile Stamper</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Tile Stamper</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #1b1b1b;
+    color: #eee;
+  }
+
+  header {
+    padding: 14px 20px;
+    background: #111;
+    border-bottom: 1px solid #444;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+  }
+
+  #app {
+    display: flex;
+    height: calc(100vh - 55px);
+  }
+
+  #sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    padding: 12px;
+    background: #242424;
+    border-right: 1px solid #555;
+    overflow-y: auto;
+  }
+
+  #sidebar button,
+  #main button {
+    background: #3a3a3a;
+    color: #eee;
+    border: 1px solid #666;
+    border-radius: 4px;
+    padding: 7px 10px;
+    cursor: pointer;
+  }
+
+  #sidebar button:hover,
+  #main button:hover {
+    background: #4b4b4b;
+  }
+
+  #new-category {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .category {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 5px;
+  }
+
+  .category-name {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .category-name.active {
+    border-left: 4px solid #d4af37;
+  }
+
+  .category-delete {
+    width: 30px;
+    padding: 6px 0 !important;
+  }
+
+  #main {
+    flex: 1;
+    min-width: 0;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  #main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 18px;
+  }
+
+  #category-title {
+    margin: 0;
+  }
+
+  #tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 130px);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .tile-card {
+    position: relative;
+    width: 130px;
+  }
+
+  .tile-image {
+    width: 130px;
+    height: 130px;
+    padding: 5px;
+    border: 1px solid #666;
+    border-radius: 7px;
+    background: #111;
+    cursor: grab;
+    object-fit: contain;
+    display: block;
+  }
+
+  .tile-image:active {
+    cursor: grabbing;
+  }
+
+  .tile-name {
+    margin-top: 5px;
+    text-align: center;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tile-delete {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 26px;
+    height: 26px;
+    padding: 0 !important;
+    border-radius: 50% !important;
+  }
+
+  #empty-message {
+    opacity: .65;
+    padding: 40px;
+    text-align: center;
+  }
+
+  dialog {
+    background: #292929;
+    color: #eee;
+    border: 1px solid #666;
+    border-radius: 8px;
+    padding: 20px;
+    width: 400px;
+    max-width: 90vw;
+  }
+
+  dialog::backdrop {
+    background: rgba(0,0,0,.65);
+  }
+
+  dialog h2 {
+    margin-top: 0;
+  }
+
+  dialog label {
+    display: block;
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+
+  dialog input {
+    width: 100%;
+    padding: 8px;
+    background: #151515;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 4px;
+  }
+
+  .dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .dialog-buttons button {
+    padding: 7px 12px;
+  }
+
+  #status {
+    position: fixed;
+    right: 15px;
+    bottom: 15px;
+    padding: 8px 12px;
+    background: #111;
+    border: 1px solid #555;
+    border-radius: 5px;
+    font-size: 12px;
+    opacity: .85;
+  }
+</style>
 </head>
 
 <body>
 
+<header>
   <h1>Tile Stamper</h1>
-  <p>If you're seeing this, it works!</p>
+</header>
+
+<div id="app">
+
+  <aside id="sidebar">
+
+    <button id="new-category">
+      + Category
+    </button>
+
+    <div id="categories"></div>
+
+  </aside>
+
+  <main id="main">
+
+    <div id="main-header">
+
+      <h2 id="category-title">
+        Tile Library
+      </h2>
+
+      <button id="add-image">
+        + Add Image
+      </button>
+
+    </div>
+
+    <div id="tiles"></div>
+
+  </main>
+
+</div>
+
+<div id="status">
+  Drag a tile onto Foundry to place it.
+</div>
+
+
+<!-- ADD IMAGE DIALOG -->
+
+<dialog id="image-dialog">
+
+  <h2>Add Image</h2>
+
+  <label>
+    Name
+  </label>
+
+  <input
+    id="image-name"
+    type="text"
+    placeholder="Oak Tree"
+  >
+
+  <label>
+    Image URL
+  </label>
+
+  <input
+    id="image-url"
+    type="text"
+    placeholder="https://..."
+  >
+
+  <div class="dialog-buttons">
+
+    <button id="image-cancel">
+      Cancel
+    </button>
+
+    <button id="image-save">
+      Add
+    </button>
+
+  </div>
+
+</dialog>
+
+
+<script>
+
+const STORAGE_KEY =
+  "tileStamperLibrary";
+
+
+let library =
+  loadLibrary();
+
+
+let selectedCategoryId =
+  library.categories[0]?.id
+  ?? null;
+
+
+// ============================================================
+// STORAGE
+// ============================================================
+
+function loadLibrary() {
+
+  try {
+
+    const saved =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
+
+
+    if (saved) {
+
+      return JSON.parse(
+        saved
+      );
+    }
+
+  }
+
+  catch (err) {
+
+    console.error(
+      "Could not load Tile Stamper library:",
+      err
+    );
+  }
+
+
+  return {
+    categories: []
+  };
+}
+
+
+function saveLibrary() {
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(
+      library
+    )
+  );
+}
+
+
+// ============================================================
+// IDS
+// ============================================================
+
+function makeId() {
+
+  return crypto.randomUUID();
+}
+
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getSelectedCategory() {
+
+  return (
+    library.categories.find(
+      category =>
+        category.id ===
+        selectedCategoryId
+    )
+    ?? null
+  );
+}
+
+
+function deriveName(url) {
+
+  try {
+
+    const filename =
+      url
+        .split("/")
+        .pop()
+        .split("?")[0];
+
+
+    return (
+      decodeURIComponent(filename)
+        .replace(/\.[^.]+$/, "")
+      ||
+      "Image"
+    );
+
+  }
+
+  catch {
+
+    return "Image";
+  }
+}
+
+
+// ============================================================
+// RENDER
+// ============================================================
+
+function render() {
+
+  renderCategories();
+  renderTiles();
+}
+
+
+function renderCategories() {
+
+  const container =
+    document.getElementById(
+      "categories"
+    );
+
+
+  container.innerHTML = "";
+
+
+  for (
+    const category
+    of library.categories
+  ) {
+
+    const row =
+      document.createElement(
+        "div"
+      );
+
+
+    row.className =
+      "category";
+
+
+    const button =
+      document.createElement(
+        "button"
+      );
+
+
+    button.className =
+      "category-name";
+
+
+    if (
+      category.id ===
+      selectedCategoryId
+    ) {
+
+      button.classList.add(
+        "active"
+      );
+    }
+
+
+    button.textContent =
+      category.name;
+
+
+    button.onclick = () => {
+
+      selectedCategoryId =
+        category.id;
+
+      render();
+
+    };
+
+
+    const deleteButton =
+      document.createElement(
+        "button"
+      );
+
+
+    deleteButton.className =
+      "category-delete";
+
+
+    deleteButton.textContent =
+      "×";
+
+
+    deleteButton.title =
+      "Delete Category";
+
+
+    deleteButton.onclick =
+      event => {
+
+        event.stopPropagation();
+
+        deleteCategory(
+          category.id
+        );
+
+      };
+
+
+    row.append(
+      button,
+      deleteButton
+    );
+
+
+    container.appendChild(
+      row
+    );
+  }
+}
+
+
+function renderTiles() {
+
+  const category =
+    getSelectedCategory();
+
+
+  const title =
+    document.getElementById(
+      "category-title"
+    );
+
+
+  const container =
+    document.getElementById(
+      "tiles"
+    );
+
+
+  const addButton =
+    document.getElementById(
+      "add-image"
+    );
+
+
+  container.innerHTML = "";
+
+
+  if (!category) {
+
+    title.textContent =
+      "Tile Library";
+
+
+    addButton.disabled =
+      true;
+
+
+    container.innerHTML = `
+      <div id="empty-message">
+        Create a category to get started.
+      </div>
+    `;
+
+
+    return;
+  }
+
+
+  title.textContent =
+    category.name;
+
+
+  addButton.disabled =
+    false;
+
+
+  if (
+    !category.assets.length
+  ) {
+
+    container.innerHTML = `
+      <div id="empty-message">
+        This category is empty.
+        <br><br>
+        Click <strong>+ Add Image</strong>.
+      </div>
+    `;
+
+
+    return;
+  }
+
+
+  for (
+    const asset
+    of category.assets
+  ) {
+
+    const card =
+      document.createElement(
+        "div"
+      );
+
+
+    card.className =
+      "tile-card";
+
+
+    const image =
+      document.createElement(
+        "img"
+      );
+
+
+    image.className =
+      "tile-image";
+
+
+    image.src =
+      asset.src;
+
+
+    image.draggable =
+      true;
+
+
+    image.title =
+      "Drag onto the Foundry canvas";
+
+
+    // ========================================================
+    // THE IMPORTANT PART:
+    // SEND FOUNDRY A TILE DRAG PAYLOAD
+    // ========================================================
+
+    image.addEventListener(
+      "dragstart",
+      event => {
+
+        const data = {
+
+          type:
+            "Tile",
+
+          texture: {
+
+            src:
+              asset.src
+
+          },
+
+          width:
+            300,
+
+          height:
+            300
+
+        };
+
+
+        event.dataTransfer.setData(
+
+          "text/plain",
+
+          JSON.stringify(
+            data
+          )
+
+        );
+
+
+        event.dataTransfer.effectAllowed =
+          "copy";
+
+      }
+    );
+
+
+    const name =
+      document.createElement(
+        "div"
+      );
+
+
+    name.className =
+      "tile-name";
+
+
+    name.textContent =
+      asset.name;
+
+
+    name.title =
+      asset.name;
+
+
+    const deleteButton =
+      document.createElement(
+        "button"
+      );
+
+
+    deleteButton.className =
+      "tile-delete";
+
+
+    deleteButton.textContent =
+      "×";
+
+
+    deleteButton.title =
+      "Delete Image";
+
+
+    deleteButton.onclick = () => {
+
+      deleteImage(
+        asset.id
+      );
+
+    };
+
+
+    card.append(
+      image,
+      deleteButton,
+      name
+    );
+
+
+    container.appendChild(
+      card
+    );
+  }
+}
+
+
+// ============================================================
+// CATEGORIES
+// ============================================================
+
+document
+  .getElementById(
+    "new-category"
+  )
+  .onclick = () => {
+
+    const name =
+      prompt(
+        "Category name:"
+      );
+
+
+    if (!name?.trim())
+      return;
+
+
+    const category = {
+
+      id:
+        makeId(),
+
+      name:
+        name.trim(),
+
+      assets:
+        []
+
+    };
+
+
+    library.categories.push(
+      category
+    );
+
+
+    selectedCategoryId =
+      category.id;
+
+
+    saveLibrary();
+    render();
+
+  };
+
+
+function deleteCategory(
+  categoryId
+) {
+
+  const category =
+    library.categories.find(
+      c =>
+        c.id ===
+        categoryId
+    );
+
+
+  if (!category)
+    return;
+
+
+  const confirmed =
+    confirm(
+      `Delete "${category.name}" and its ${category.assets.length} image(s)?`
+    );
+
+
+  if (!confirmed)
+    return;
+
+
+  library.categories =
+    library.categories.filter(
+      c =>
+        c.id !==
+        categoryId
+    );
+
+
+  if (
+    selectedCategoryId ===
+    categoryId
+  ) {
+
+    selectedCategoryId =
+      library.categories[0]?.id
+      ?? null;
+  }
+
+
+  saveLibrary();
+  render();
+}
+
+
+// ============================================================
+// ADD IMAGE
+// ============================================================
+
+const imageDialog =
+  document.getElementById(
+    "image-dialog"
+  );
+
+
+document
+  .getElementById(
+    "add-image"
+  )
+  .onclick = () => {
+
+    document.getElementById(
+      "image-name"
+    ).value = "";
+
+
+    document.getElementById(
+      "image-url"
+    ).value = "";
+
+
+    imageDialog.showModal();
+
+
+    document.getElementById(
+      "image-url"
+    ).focus();
+
+  };
+
+
+document
+  .getElementById(
+    "image-cancel"
+  )
+  .onclick = () => {
+
+    imageDialog.close();
+
+  };
+
+
+document
+  .getElementById(
+    "image-save"
+  )
+  .onclick = () => {
+
+    const category =
+      getSelectedCategory();
+
+
+    if (!category)
+      return;
+
+
+    const url =
+      document
+        .getElementById(
+          "image-url"
+        )
+        .value
+        .trim();
+
+
+    let name =
+      document
+        .getElementById(
+          "image-name"
+        )
+        .value
+        .trim();
+
+
+    if (!url) {
+
+      alert(
+        "Enter an image URL."
+      );
+
+      return;
+    }
+
+
+    if (!name) {
+
+      name =
+        deriveName(
+          url
+        );
+    }
+
+
+    category.assets.push({
+
+      id:
+        makeId(),
+
+      name,
+
+      src:
+        url
+
+    });
+
+
+    saveLibrary();
+
+    imageDialog.close();
+
+    render();
+
+  };
+
+
+// ============================================================
+// DELETE IMAGE
+// ============================================================
+
+function deleteImage(
+  assetId
+) {
+
+  const category =
+    getSelectedCategory();
+
+
+  if (!category)
+    return;
+
+
+  const asset =
+    category.assets.find(
+      a =>
+        a.id ===
+        assetId
+    );
+
+
+  if (!asset)
+    return;
+
+
+  if (
+    !confirm(
+      `Delete "${asset.name}"?`
+    )
+  ) {
+
+    return;
+  }
+
+
+  category.assets =
+    category.assets.filter(
+      a =>
+        a.id !==
+        assetId
+    );
+
+
+  saveLibrary();
+  render();
+}
+
+
+// ============================================================
+// START
+// ============================================================
+
+render();
+
+</script>
 
 </body>
 </html>
